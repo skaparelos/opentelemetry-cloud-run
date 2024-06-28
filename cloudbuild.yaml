@@ -1,0 +1,74 @@
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    env:
+      - "IMAGE_COLLECTOR=${_IMAGE_COLLECTOR}"
+    script: |
+      docker build -t ${IMAGE_COLLECTOR} ./collector
+    id: BUILD_COLLECTOR
+    waitFor: ["-"]
+
+  - name: "gcr.io/cloud-builders/docker"
+    env:
+      - "IMAGE_COLLECTOR=${_IMAGE_COLLECTOR}"
+    script: |
+      docker push ${IMAGE_COLLECTOR}
+    id: PUSH_COLLECTOR
+    waitFor:
+      - BUILD_COLLECTOR
+
+  - name: "ubuntu"
+    env:
+      - "SERVICE_NAME=${_SERVICE_NAME}"
+      - "IMAGE_COLLECTOR=${_IMAGE_COLLECTOR}"
+    script: |
+      echo "running sed"
+      sed -i s@%SERVICE_NAME%@${SERVICE_NAME}@g run-service.yaml
+      sed -i s@%OTELCOL_IMAGE%@${IMAGE_COLLECTOR}@g run-service.yaml
+      echo "done with sed"
+    id: REPLACE_YAML_VALUE
+    waitFor: ["-"]
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    env:
+      - "REGION=${_REGION}"
+    script: |
+      echo "running gcloud run"
+      gcloud run services replace run-service.yaml --region ${REGION}
+    id: DEPLOY_MULTICONTAINER
+    waitFor:
+      - PUSH_COLLECTOR
+      - REPLACE_YAML_VALUE
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    env:
+      - "REGION=${_REGION}"
+      - "SERVICE_NAME=${_SERVICE_NAME}"
+    script: |
+      gcloud run services set-iam-policy ${SERVICE_NAME} policy.yaml --region ${REGION} --quiet
+    id: ALLOW_UNAUTHENTICATED
+    waitFor:
+      - DEPLOY_MULTICONTAINER
+
+substitutions:
+  _SERVICE_NAME: opentelemetry-cloud-run-sample
+  _REGION: us-central1
+  _REGISTRY: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/run-otel-example
+  _IMAGE_COLLECTOR: ${_REGISTRY}/collector
+  _SA_NAME: run-otel-example-sa
+
+images:
+  # - ${_IMAGE_APP}
+  - ${_IMAGE_COLLECTOR}
+
+# comment out the following line if you want to run Cloud Build with the existing
+# service account with the following roles.
+# * roles/iam.serviceAccountUser
+# * roles/storage.objectViewer
+# * roles/logging.logWriter
+# * roles/artifactregistry.createOnPushWriter
+# * roles/run.admin
+serviceAccount: "projects/${PROJECT_ID}/serviceAccounts/${_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+
+options:
+  dynamic_substitutions: true
+  logging: CLOUD_LOGGING_ONLY

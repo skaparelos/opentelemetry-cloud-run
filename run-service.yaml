@@ -1,0 +1,23 @@
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  annotations:
+    run.googleapis.com/launch-stage: ALPHA
+  name: "%SERVICE_NAME%"
+spec:
+  template:
+  #   metadata:
+  #     annotations:
+  #       run.googleapis.com/execution-environment: gen1
+  #       run.googleapis.com/container-dependencies: '{"app":["collector"]}'
+    spec:
+      containers:
+        - image: "%OTELCOL_IMAGE%"
+          name: collector
+          ports:
+            - containerPort: 4318
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "2"   

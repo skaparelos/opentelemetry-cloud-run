@@ -1,0 +1,91 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+exporters:
+  googlecloud:
+    trace:
+      project_id: xxx # replace with project id
+    log:
+      default_log_name: ltm-sample-app
+  googlemanagedprometheus:
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resourcedetection]
+      exporters: [googlecloud]
+    logs:
+      receivers: [otlp, filelog]
+      processors: [resourcedetection]
+      exporters: [googlecloud]
+    metrics:
+      receivers: [otlp]
+      processors: [resourcedetection]
+      exporters: [googlemanagedprometheus]
+
+
+# receivers:
+#   otlp:
+#     protocols:
+#       grpc:
+#       http:
+      
+
+#   filelog:
+#     include: [ /logging/*.log ]
+#     start_at: beginning
+#     operators:
+#       - type: regex_parser
+#         regex: '^sample-app \[(?P<trace_id>\S*)\]\[spanId: (?P<span_id>\S*)\]: .*'
+#         trace:
+#           trace_id:
+#             parse_from: attributes.trace_id
+#           span_id:
+#             parse_from: attributes.span_id
+
+# processors:
+#   batch:
+#     # batch metrics before sending to reduce API usage
+#     send_batch_max_size: 200
+#     send_batch_size: 200
+#     timeout: 5s
+
+#   memory_limiter:
+#     # drop metrics if memory usage gets too high
+#     check_interval: 1s
+#     limit_percentage: 65
+#     spike_limit_percentage: 20
+
+#   resourcedetection:
+#     detectors: [env, gcp]
+#     timeout: 2s
+#     override: false
+
+# exporters:
+#   googlecloud:
+#     log:
+#       default_log_name: ltm-sample-app
+#   googlemanagedprometheus:
+
+# extensions:
+#   health_check:
+
+# service:
+#   extensions: [health_check]
+#   pipelines:
+#     traces:
+#       receivers: [otlp]
+#       processors: [resourcedetection]
+#       exporters: [googlecloud]
+#     logs:
+#       receivers: [otlp, filelog]
+#       processors: [resourcedetection]
+#       exporters: [googlecloud]
+#     metrics:
+#       receivers: [otlp]
+#       processors: [resourcedetection]
+#       exporters: [googlemanagedprometheus]
+
